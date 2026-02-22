@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -13,7 +12,7 @@ const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   // ── Gemini Setup ───────────────────────────────────────────
   const apiKey = process.env.GEMINI_API_KEY;
