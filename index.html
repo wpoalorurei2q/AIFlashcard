@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Flashcards</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <!-- ══════════════════════════════════════════
+         MODAL: Add Manual Flashcard
+    ══════════════════════════════════════════ -->
+    <div class="modal" id="manualCardModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Add Manual Flashcard</div>
+                <button class="close-modal" id="closeManualModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Question</label>
+                    <textarea class="form-input" id="manualQuestion" placeholder="Enter the question..." rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Answer</label>
+                    <textarea class="form-input" id="manualAnswer" placeholder="Enter the answer..." rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tags (comma separated)</label>
+                    <input type="text" class="form-input" id="manualTags" placeholder="e.g., JavaScript, Programming">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelManualCard">Cancel</button>
+                <button class="btn btn-primary" id="saveManualCard">Save Card</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         MODAL: AI Configuration (Gemini)
+    ══════════════════════════════════════════ -->
+    <div class="modal" id="aiConfigModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <div class="modal-title">AI Configuration</div>
+                <button class="close-modal" id="closeAIConfigModal">&times;</button>
+            </div>
+            <div class="modal-body">
+
+                <div class="form-group">
+                    <label class="form-label">AI Provider</label>
+                    <input type="text" class="form-input" value="Google Gemini" disabled
+                        style="background: #f1f5f9; color: var(--gray); cursor: not-allowed;">
+                    <small style="color: var(--gray); font-size: 12px;">Powered by the Gemini API via your Express backend</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Model</label>
+                    <input type="text" class="form-input" id="aiModel" value="gemini-3-flash-preview" disabled
+                        style="background: #f1f5f9; color: var(--gray); cursor: not-allowed;">
+                    <small style="color: var(--gray); font-size: 12px;">Model is configured in your server's .env file</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Number of Cards to Generate</label>
+                    <input type="number" class="form-input" id="aiCardCount" min="1" max="20" value="5">
+                    <small style="color: var(--gray); font-size: 12px;">How many cards Gemini generates per topic (1–20)</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">System Prompt</label>
+                    <textarea class="form-input" id="aiSystemPrompt" rows="3">You are an expert educator. Generate clear, accurate, and concise educational flashcards.</textarea>
+                    <small style="color: var(--gray); font-size: 12px;">Instructions sent to Gemini before every generation request</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Prompt Template</label>
+                    <textarea class="form-input" id="aiPromptTemplate" rows="4">Generate {count} educational flashcards about: {topic}
+
+Return only a JSON array with objects containing "question", "answer", and "tags".</textarea>
+                    <small style="color: var(--gray); font-size: 12px;">Use {count} and {topic} as placeholders</small>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="resetAIConfig">Reset to Defaults</button>
+                <button class="btn btn-secondary" id="cancelAIConfig">Cancel</button>
+                <button class="btn btn-primary" id="saveAIConfig">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         MODAL: Create New Deck
+    ══════════════════════════════════════════ -->
+    <div class="modal" id="newDeckModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Create New Deck</div>
+                <button class="close-modal" id="closeDeckModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Deck Name</label>
+                    <input type="text" class="form-input" id="deckNameInput" placeholder="e.g., JavaScript Fundamentals">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description (Optional)</label>
+                    <input type="text" class="form-input" id="deckDescInput" placeholder="What will you learn?">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelDeckBtn">Cancel</button>
+                <button class="btn btn-primary" id="createDeckBtn">Create Deck</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         LOADING OVERLAY
+    ══════════════════════════════════════════ -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p id="loadingText">Generating flashcards with Gemini AI...</p>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         MAIN APP
+    ══════════════════════════════════════════ -->
+    <div class="app-container">
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                <i class="fas fa-brain logo-icon"></i>
+                <div>
+                    <div class="logo-text">AI Flashcards</div>
+                    <div class="logo-sub">Powered by Gemini</div>
+                </div>
+            </div>
+
+            <button class="new-deck-btn" id="newDeckBtn">
+                <i class="fas fa-plus-circle"></i> New Deck
+            </button>
+
+            <div class="deck-list" id="deckList">
+                <!-- Decks rendered by script.js -->
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+
+            <!-- Header -->
+            <div class="header">
+                <div class="header-title">
+                    <span id="currentDeckTitle">Select a Deck</span>
+                    <span class="ai-status-badge" id="aiStatusBadge">Gemini Active</span>
+                    <button class="icon-btn" id="aiConfigBtn" title="AI Settings"
+                        style="margin-left: 10px; background: none; border: none; color: var(--dark); cursor: pointer; font-size: 18px;">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+                <div class="deck-stats">
+                    <div class="stat-item">
+                        <i class="fas fa-layer-group"></i>
+                        <span id="deckCount">0</span> decks
+                    </div>
+                    <div class="stat-item">
+                        <i class="fas fa-clone"></i>
+                        <span id="totalCards">0</span> cards
+                    </div>
+                    <div class="stat-item">
+                        <i class="fas fa-clock"></i>
+                        <span id="dueCards">0</span> due
+                        <span class="stat-badge due" id="dueBadge">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <i class="fas fa-graduation-cap"></i>
+                        <span id="learningCards">0</span> learning
+                        <span class="stat-badge learning" id="learningBadge">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <i class="fas fa-check-circle"></i>
+                        <span id="reviewCards">0</span> review
+                        <span class="stat-badge review" id="reviewBadge">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flashcard Area -->
+            <div class="flashcard-area" id="flashcardArea">
+
+                <!-- Empty State -->
+                <div class="empty-state" id="emptyState">
+                    <i class="fas fa-lightbulb empty-icon"></i>
+                    <div class="empty-title">Welcome to AI Flashcards!</div>
+                    <div class="empty-text">
+                        Create a deck, then type any topic below to generate
+                        flashcards instantly with Google Gemini.
+                    </div>
+                    <div class="welcome-actions">
+                        <button class="btn btn-primary" id="aiGenerateBtn">
+                            <i class="fas fa-robot"></i> Generate with AI
+                        </button>
+                        <button class="btn btn-secondary" id="manualCreateBtn">
+                            <i class="fas fa-plus-circle"></i> Add Manual Card
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Flashcard Display -->
+                <div id="flashcardDisplay" style="display: none;">
+
+                    <!-- Progress -->
+                    <div class="progress-info" id="progressInfo">
+                        <span id="cardProgress">Card 1 of 1</span>
+                        <span id="srsInfo" style="margin-left: 10px; font-size: 14px;"></span>
+                    </div>
+
+                    <!-- Card -->
+                    <div class="flashcard-container">
+                        <div class="flashcard" id="flashcard">
+
+                            <div class="flashcard-front">
+                                <div class="card-status" id="cardStatusFront">New</div>
+                                <div class="card-question" id="cardQuestion">Loading question...</div>
+                                <div class="card-tags" id="cardTagsFront"></div>
+                                <div class="card-due-info" id="cardDueFront"></div>
+                                <div style="margin-top: 20px; color: var(--gray); font-size: 14px;">
+                                    <i class="fas fa-mouse-pointer"></i> Click or press Space to flip
+                                </div>
+                            </div>
+
+                            <div class="flashcard-back">
+                                <div class="card-status" id="cardStatusBack">New</div>
+                                <div class="card-answer" id="cardAnswer">Answer will appear here</div>
+                                <div class="card-tags" id="cardTagsBack"></div>
+                                <div class="card-due-info" id="cardDueBack"></div>
+                                <div style="margin-top: 20px; color: var(--gray); font-size: 14px;">
+                                    <i class="fas fa-mouse-pointer"></i> Click to flip back
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Review Buttons (shown after flip) -->
+                    <div class="review-buttons" id="reviewButtons" style="display: none;">
+                        <button class="review-btn dont-know" id="againBtn">
+                            <i class="fas fa-redo"></i> Don't Know
+                        </button>
+                        <button class="review-btn hard" id="hardBtn">
+                            <i class="fas fa-frown"></i> Hard
+                        </button>
+                        <button class="review-btn good" id="goodBtn">
+                            <i class="fas fa-meh"></i> Good
+                        </button>
+                        <button class="review-btn easy" id="easyBtn">
+                            <i class="fas fa-smile"></i> Easy
+                        </button>
+                    </div>
+
+                    <!-- Navigation Controls -->
+                    <div class="card-controls">
+                        <button class="control-btn" id="prevBtn">
+                            <i class="fas fa-arrow-left"></i> Prev
+                        </button>
+                        <button class="control-btn primary" id="flipBtn">
+                            <i class="fas fa-sync-alt"></i> Flip
+                        </button>
+                        <button class="control-btn" id="nextBtn">
+                            Next <i class="fas fa-arrow-right"></i>
+                        </button>
+                        <button class="control-btn secondary" id="addManualBtn">
+                            <i class="fas fa-plus"></i> Add Card
+                        </button>
+                        <button class="control-btn success" id="aiGenerateFromHereBtn">
+                            <i class="fas fa-robot"></i> More AI
+                        </button>
+                        <button class="control-btn danger" id="deleteCardBtn">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+
+                </div>
+                <!-- /flashcardDisplay -->
+
+            </div>
+            <!-- /flashcard-area -->
+
+            <!-- AI Input Bar -->
+            <div class="ai-input-container">
+                <div class="input-wrapper">
+                    <textarea
+                        id="aiInput"
+                        placeholder="Type a topic and press Enter — Gemini will generate flashcards (e.g. 'JavaScript closures', 'Photosynthesis')"
+                        rows="2"></textarea>
+                    <button class="send-btn" id="sendBtn" title="Generate cards">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="input-footer">
+                    <div class="ai-status" id="aiStatus">
+                        <i class="fas fa-circle" style="color: #10b981;"></i> Gemini Ready
+                    </div>
+                    <div id="connectionStatus">
+                        Press <kbd>Enter</kbd> to generate &nbsp;·&nbsp; <kbd>Shift+Enter</kbd> for new line
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <!-- /main-content -->
+
+    </div>
+    <!-- /app-container -->
+
+    <script type="module" src="/script.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,5 @@
+{
+  "name": "AI Flashcards",
+  "description": "Generate and study flashcards using Google Gemini AI. Features a full-stack Express backend with in-memory storage.",
+  "requestFramePermissions": []
+}
